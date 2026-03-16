@@ -54,6 +54,7 @@ body{
       justify-content:center;
     }
 
+    /* زخرفة خلفية خفيفة */
     body::before{
       content:"";
       position:fixed;
@@ -69,11 +70,13 @@ body{
       background-position: 0 0, 20px 20px, 0 0;
     }
 
+    /* ✅ wrap صار هو منطقة التمرير + أخذ padding */
     .wrap{
       width:100%;
       max-width:720px;
       position:relative;
       z-index:1;
+
       height:100%;
       overflow-y:auto;
       -webkit-overflow-scrolling:touch;
@@ -96,6 +99,7 @@ body{
       overflow:hidden;
     }
 
+    /* زخرفة نقطية قديمة */
     .top::before{
       content:"";
       position:absolute;
@@ -301,11 +305,49 @@ body{
       animation: sp .8s linear infinite;
     }
     @keyframes sp{to{transform:rotate(360deg)}}
+
+    /* ✅ صندوق إغلاق الاستقبال */
+    .closedBox{
+      display:none;
+      width:100%;
+      max-width:520px;
+      margin:0 auto 16px;
+      background:var(--card);
+      border-radius:26px;
+      padding:28px 20px;
+      box-shadow:var(--shadow);
+      text-align:center;
+    }
+    .closedIcon{
+      font-size:42px;
+      margin-bottom:8px;
+    }
+    .closedBox h2{
+      margin:0 0 8px;
+      color:var(--green2);
+      font-size:20px;
+      font-weight:900;
+    }
+    .closedBox p{
+      margin:0;
+      color:var(--muted);
+      font-weight:700;
+      line-height:1.8;
+      font-size:14px;
+    }
   </style>
 </head>
 
 <body>
   <div class="wrap">
+
+    <!-- ✅ جديد: رسالة الإغلاق -->
+    <div class="closedBox" id="closedBox">
+      <div class="closedIcon">⛔</div>
+      <h2>تم إيقاف استقبال الطلبات</h2>
+      <p>نعتذر، تم إغلاق استقبال زكاة الفطر حالياً.</p>
+    </div>
+
     <div class="top">
       <div class="topPattern" aria-hidden="true">
         <svg viewBox="0 0 600 240" preserveAspectRatio="xMaxYMid slice">
@@ -636,7 +678,39 @@ body{
     catch { return { status:"unknown", raw:text }; }
   }
 
-  document.addEventListener("DOMContentLoaded", ()=>{
+  /* ✅ جديد: فحص حالة الاستقبال قبل إظهار النموذج */
+  async function checkSystemStatus(){
+    try{
+      const url = SCRIPT_URL + "?mode=status";
+      const res = await fetch(url, { method:"GET" });
+      const text = await res.text();
+
+      let result = {};
+      try{
+        result = JSON.parse(text);
+      }catch{
+        result = {};
+      }
+
+      if(result.system === "CLOSED"){
+        $("closedBox").style.display = "block";
+        document.querySelector(".top").style.display = "none";
+        document.querySelector(".card").style.display = "none";
+        document.querySelector(".footer").style.display = "none";
+        return false;
+      }
+
+      return true;
+    }catch(e){
+      console.error("Status check failed:", e);
+      return true;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", async ()=>{
+    const isOpen = await checkSystemStatus();
+    if(!isOpen) return;
+
     const today = new Date().toISOString().split("T")[0];
     transferDate.setAttribute("max", today);
 
@@ -733,6 +807,7 @@ body{
           showToast("تم إرسال الطلب بنجاح ✅", "success");
         }else if(result.status === "closed"){
           showToast("تم إغلاق استقبال الطلبات حالياً", "error");
+          return;
         }else if(result.status === "duplicate"){
           showToast("هذا الرقم مسجل مسبقًا.", "warn");
         }else if(result.status === "invalid_phone"){
